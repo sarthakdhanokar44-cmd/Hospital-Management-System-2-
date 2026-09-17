@@ -1,0 +1,102 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'sarthakdhanokar2@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // User entity validation
+    function isValidUser(data) {
+      return data.id is string && data.id == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 150
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 25))
+        && (!('age' in data) || (data.age is number && data.age >= 0 && data.age <= 130))
+        && (!('gender' in data) || (data.gender in ['Male', 'Female', 'Other']))
+        && (!('bloodGroup' in data) || (data.bloodGroup is string && data.bloodGroup.size() <= 10))
+        && (!('role' in data) || (data.role in ['admin', 'patient']))
+        && (!('registeredAt' in data) || (data.registeredAt is string && data.registeredAt.size() <= 50));
+    }
+
+    // Appointment entity validation
+    function isValidAppointment(data) {
+      return data.id is string && isValidId(data.id)
+        && data.userId is string && data.userId == request.auth.uid
+        && data.doctorId is string && data.doctorId.size() <= 100
+        && data.doctorName is string && data.doctorName.size() > 0 && data.doctorName.size() <= 120
+        && (!('doctorTitle' in data) || (data.doctorTitle is string && data.doctorTitle.size() <= 120))
+        && data.departmentId is string && data.departmentId.size() <= 80
+        && data.departmentName is string && data.departmentName.size() <= 100
+        && data.date is string && data.date.size() <= 20
+        && data.timeSlot is string && data.timeSlot.size() <= 30
+        && (!('appointmentType' in data) || (data.appointmentType in ['In-Person Consultation', 'Video Follow-up', 'Second Opinion']))
+        && data.patientName is string && data.patientName.size() > 0 && data.patientName.size() <= 100
+        && (!('patientPhone' in data) || (data.patientPhone is string && data.patientPhone.size() <= 25))
+        && (!('patientEmail' in data) || (data.patientEmail is string && data.patientEmail.size() <= 150))
+        && (!('patientAge' in data) || (data.patientAge is number && data.patientAge >= 0 && data.patientAge <= 130))
+        && (!('patientGender' in data) || (data.patientGender in ['Male', 'Female', 'Other']))
+        && (!('reason' in data) || (data.reason is string && data.reason.size() <= 500))
+        && data.tokenNumber is string && data.tokenNumber.size() <= 30
+        && (!('roomNumber' in data) || (data.roomNumber is string && data.roomNumber.size() <= 30))
+        && data.status in ['Confirmed', 'Completed', 'Cancelled']
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 50));
+    }
+
+    // Users Collection (PII Isolated - Owner Only, Admin read)
+    match /users/{userId} {
+      allow get: if (isOwner(userId) && isValidId(userId)) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
+      allow update: if (isOwner(userId) && isValidId(userId) && isValidUser(incoming())
+                    && incoming().id == existing().id) || isAdmin();
+      allow delete: if false;
+    }
+
+    // Appointments Collection
+    match /appointments/{appointmentId} {
+      // Patients can only list and manage their own appointments; Admin has full access
+      allow list: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow get: if (isSignedIn() && isValidId(appointmentId) && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create: if (isSignedIn() && isValidId(appointmentId) && isValidAppointment(incoming()))
+                    || (isAdmin() && isValidId(appointmentId));
+      allow update: if (isSignedIn() && isValidId(appointmentId) && isValidAppointment(incoming())
+                    && existing().userId == request.auth.uid
+                    && incoming().userId == existing().userId
+                    && incoming().id == existing().id)
+                    || (isAdmin() && isValidId(appointmentId));
+      allow delete: if (isSignedIn() && isValidId(appointmentId) && resource.data.userId == request.auth.uid)
+                    || isAdmin();
+    }
+  }
+}

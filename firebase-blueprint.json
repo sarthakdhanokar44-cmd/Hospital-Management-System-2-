@@ -1,0 +1,181 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered patient profile with demographic details",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user ID matching Firebase auth UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Patient full name",
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "description": "Patient verified contact email",
+          "format": "email",
+          "maxLength": 150
+        },
+        "phone": {
+          "type": "string",
+          "description": "Patient primary phone number",
+          "maxLength": 25
+        },
+        "age": {
+          "type": "number",
+          "description": "Patient age in years"
+        },
+        "gender": {
+          "type": "string",
+          "description": "Patient biological gender",
+          "enum": ["Male", "Female", "Other"]
+        },
+        "bloodGroup": {
+          "type": "string",
+          "description": "Patient blood group type",
+          "maxLength": 10
+        },
+        "role": {
+          "type": "string",
+          "description": "Access control role: admin or patient",
+          "enum": ["admin", "patient"]
+        },
+        "registeredAt": {
+          "type": "string",
+          "description": "ISO timestamp of registration"
+        }
+      },
+      "required": ["id", "name", "email"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Patient outpatient clinic booking consultation",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique appointment identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID of the patient who booked the appointment"
+        },
+        "doctorId": {
+          "type": "string",
+          "description": "Consultant doctor ID"
+        },
+        "doctorName": {
+          "type": "string",
+          "description": "Doctor full name and title",
+          "maxLength": 120
+        },
+        "doctorTitle": {
+          "type": "string",
+          "description": "Doctor designation",
+          "maxLength": 120
+        },
+        "departmentId": {
+          "type": "string",
+          "description": "Medical specialty department identifier",
+          "maxLength": 80
+        },
+        "departmentName": {
+          "type": "string",
+          "description": "Hospital department name",
+          "maxLength": 100
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of appointment in YYYY-MM-DD format",
+          "maxLength": 20
+        },
+        "timeSlot": {
+          "type": "string",
+          "description": "Time slot string",
+          "maxLength": 30
+        },
+        "appointmentType": {
+          "type": "string",
+          "description": "Modality of consultation",
+          "enum": ["In-Person Consultation", "Video Follow-up", "Second Opinion"]
+        },
+        "patientName": {
+          "type": "string",
+          "description": "Patient full name",
+          "maxLength": 100
+        },
+        "patientPhone": {
+          "type": "string",
+          "description": "Contact telephone number",
+          "maxLength": 25
+        },
+        "patientEmail": {
+          "type": "string",
+          "description": "Notification email address",
+          "format": "email",
+          "maxLength": 150
+        },
+        "patientAge": {
+          "type": "number",
+          "description": "Age of the patient"
+        },
+        "patientGender": {
+          "type": "string",
+          "description": "Patient gender",
+          "enum": ["Male", "Female", "Other"]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Chief medical complaint or reason for visit",
+          "maxLength": 500
+        },
+        "tokenNumber": {
+          "type": "string",
+          "description": "OPD queue token number",
+          "maxLength": 30
+        },
+        "roomNumber": {
+          "type": "string",
+          "description": "Clinical consulting room number",
+          "maxLength": 30
+        },
+        "status": {
+          "type": "string",
+          "description": "Appointment status lifecycle",
+          "enum": ["Confirmed", "Completed", "Cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when booking was created"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "doctorId",
+        "doctorName",
+        "departmentId",
+        "departmentName",
+        "date",
+        "timeSlot",
+        "patientName",
+        "tokenNumber",
+        "status"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Patient profile records, readable and writable only by the authenticated owner user"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Patient appointments collection, readable and writeable only by the owner who created it"
+    }
+  }
+}
